@@ -1,1 +1,42 @@
-test message hello world
+$ sudo apt install meson python3-setuptools
+$ repo init -u https://android.googlesource.com/platform/manifest -b android-13.0.0_r52
+$ git clone https://github.com/snappautomotive/firmware_rpi-local_manifests .repo/local_manifests -b sa-arpi-13
+$ repo sync
+$ source build/envsetup.sh
+$ lunch rpi4_car-eng
+$ make ramdisk systemimage vendorimage
+
+
+This will create the disk images you will need to create a bootable SD card. You will then need to partition the SD card with the following layout using fdisk;
+p1 128MB W95 FAT32(LBA) & Bootable
+p2 2048MB Linux
+p3 1024MB Linux
+p4 All remaining space
+Once your build has been completed you can write the disk images to p2 and p4 using the following commands;
+
+
+
+
+$ sudo dd if=out/target/product/rpi4_car/system.img of=/dev/<p2> bs=1M
+$ sudo dd if=out/target/product/rpi4_car/vendor.img of=/dev/<p3> bs=1M
+
+
+
+
+You will also need to create filesystems on p1 and p4 using the following commands;
+$ sudo mkfs.vfat /dev/<p1>
+$ sudo mkfs.ext4 -L userdata /dev/<p4>
+You will then need to mount p1 to copy the boot files to it, you can use the following commands;
+$ sudo mount /dev/<p1> /mnt
+$ sudo cp device/snappautomotive/rpi4_car/boot/* /mnt
+$ sudo cp out/target/product/rpi4_car/ramdisk.img /mnt
+You will then need to build the Android RPi kernel using the instructions available from that group. Once you have built the kernel, you should, from the kernel build directory, run the following commands;
+$ sudo cp out/arpi-5.15/dist/Image.gz /mnt
+$ sudo cp out/arpi-5.15/dist/bcm2711-rpi-*.dtb /mnt
+$ sudo mkdir -p /mnt/overlays
+$ sudo cp out/arpi-5.15/dist/vc4-kms-v3d-pi4.dtbo /mnt/overlays/
+You now have everything you need to boot the SD card, so you should run the following commands;
+
+$ sudo umount /mnt
+$ sudo eject /dev/<p>
+You can now remove the SD card from your build machine, insert it into your Raspberry Pi 4, and boot AAOS!
